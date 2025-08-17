@@ -35,20 +35,23 @@ test = [
 build = "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux*"
 skip = "*-musllinux* *i686"
 
-# 安装构建依赖
 before-all = [
-    # --- 开始修复 CentOS 7 EOL 问题 ---
-    # 由于 CentOS 7 已停止维护，切换到归档仓库 (vault)
+    # 修复 CentOS 7 EOL 问题
     "sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo",
     "sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo",
-    # --- 修复结束 ---
 
     "yum install -y epel-release",
     "yum install -y cmake3 ninja-build",
-    # 安装Intel MKL
+
+    # 添加 Intel MKL 仓库
     "yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo",
     "rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB",
-    "yum install -y intel-mkl-2024.0",
+    
+    # 【重要】为了调试，先搜索可用的 MKL 包
+    "yum search intel-oneapi-mkl",
+
+    # 【重要】使用正确的包名来安装最新版的 Intel MKL 开发包
+    "yum install -y intel-oneapi-mkl-devel",
 ]
 
 # 设置环境变量
