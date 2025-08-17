@@ -36,26 +36,32 @@ build = "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312
 skip = "*-musllinux* *i686"
 
 before-all = [
-    # 修复 CentOS 7 EOL 问题
-    "sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo || true",
-    "sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo || true",
-    
-    # 安装基础工具
-    "yum install -y epel-release",
-    "yum install -y cmake3 ninja-build wget",
-    
-    # 添加 Intel oneAPI 仓库
-    "echo -e '[oneAPI]\\nname=Intel oneAPI repository\\nbaseurl=https://yum.repos.intel.com/oneapi\\nenabled=1\\ngpgcheck=1\\nrepo_gpgcheck=1\\ngpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB' > /etc/yum.repos.d/oneAPI.repo",
-    
-    # 导入 GPG key
-    "rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB",
-    
-    # 清理和更新缓存
-    "yum clean all",
-    "yum makecache",
-    
-    # 安装 Intel MKL
-    "yum install -y intel-oneapi-mkl-devel-2024.0 || yum install -y intel-oneapi-mkl-devel",
+     # Fix CentOS 7 repos
+            sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo
+            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+            
+            # Fix aarch64 specific issues
+            if [[ "$(uname -m)" == "aarch64" ]]; then
+              rm -f /etc/yum.repos.d/CentOS-SCLo-*.repo
+            fi
+            
+            yum clean all
+            
+            # Install development tools
+            yum install -y gcc gcc-c++ gcc-gfortran python3-devel
+            
+            # Install other dependencies
+            yum install -y libaio-devel libcurl-devel ca-certificates
+            
+            # Install Intel MKL (only for x86_64)
+            if [[ "$(uname -m)" == "x86_64" ]]; then
+              yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo
+              rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
+              yum install -y intel-mkl-64bit-2020.0-088
+            fi
+            
+            # For OpenMP, use the standard package instead of alibaba-specific ones
+            yum install -y libgomp
 ]
 
 # 设置环境变量 - 修正格式
