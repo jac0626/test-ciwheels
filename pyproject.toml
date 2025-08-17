@@ -4,7 +4,7 @@ requires = [
     "wheel",
     "cmake>=3.15",
     "pybind11>=2.10.0",
-    "ninja; platform_system!='Windows'",
+    "ninja",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -18,22 +18,10 @@ license = {text = "MIT"}
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: C++",
-]
 
 dependencies = [
     "numpy>=1.19.0",
-    "mkl>=2023.0.0",  # Intel MKL Python wrapper
+    "mkl>=2023.0.0",
 ]
 
 [project.optional-dependencies]
@@ -43,41 +31,26 @@ test = [
 ]
 
 [tool.cibuildwheel]
-# 构建选择
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
-skip = "*-win32 *-musllinux* *i686"
+# 只构建Linux平台的wheels
+build = "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux*"
+skip = "*-musllinux* *i686"
 
-# 测试配置 - 使用正确的选项名称
-test-requires = "pytest numpy"
-test-command = "python -c 'import mkl_example; print(mkl_example.get_mkl_version())' && pytest {project}/tests"
-test-skip = ""  # 如果需要跳过某些平台的测试，可以在这里设置
-
-# Linux specific settings
-[tool.cibuildwheel.linux]
+# 安装构建依赖
 before-all = [
     "yum install -y epel-release",
     "yum install -y cmake3 ninja-build",
-    # Install Intel MKL
+    # 安装Intel MKL
     "yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo",
     "rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB",
     "yum install -y intel-mkl-2024.0",
 ]
+
+# 设置环境变量
 environment = {MKLROOT="/opt/intel/oneapi/mkl/latest", LD_LIBRARY_PATH="/opt/intel/oneapi/mkl/latest/lib/intel64:$LD_LIBRARY_PATH"}
+
+# 修复wheel，排除MKL库
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --exclude libmkl_core.so.2 --exclude libmkl_sequential.so.2 --exclude libmkl_intel_lp64.so.2"
 
-# macOS specific settings
-[tool.cibuildwheel.macos]
-before-all = [
-    "brew install cmake ninja",
-    "brew install intel-mkl",
-]
-environment = {MKLROOT="/usr/local/opt/intel-mkl", DYLD_LIBRARY_PATH="/usr/local/opt/intel-mkl/lib:$DYLD_LIBRARY_PATH"}
-repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel} --exclude libmkl_core.dylib --exclude libmkl_sequential.dylib --exclude libmkl_intel_lp64.dylib"
-
-# Windows specific settings
-[tool.cibuildwheel.windows]
-before-build = [
-    "pip install delvewheel",
-]
-environment = {MKLROOT="C:\\Program Files (x86)\\Intel\\oneAPI\\mkl\\latest"}
-repair-wheel-command = "delvewheel repair --no-dll libmkl_core.dll --no-dll libmkl_sequential.dll --no-dll libmkl_intel_lp64.dll -w {dest_dir} {wheel}"
+# 测试配置
+test-requires = "pytest numpy"
+test-command = "python -c 'import mkl_example; print(mkl_example.get_mkl_version())'"
