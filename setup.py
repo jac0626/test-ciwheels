@@ -1,46 +1,66 @@
 import os
 import sys
-from setuptools import setup, Extension
-
-# pybind11
-from pybind11.setup_helpers import Pybind11Extension, build_ext
-
-# Compiler flags for different architectures
-extra_compile_args = []
-
-# cibuildwheel sets CIBW_ARCHS variable
-# See: https://cibuildwheel.readthedocs.io/en/stable/options/#archs
-archs = os.environ.get("CIBW_ARCHS", "").lower()
-
-if "x86_64" in archs:
-    # For x86_64, we enable AVX instructions
-    extra_compile_args.append("-mavx")
-    extra_compile_args.append("-DENABLE_AVX")
-elif "aarch64" in archs:
-    # For aarch64 (ARM64), we enable NEON instructions
-    extra_compile_args.append("-DENABLE_NEON")
+import subprocess
+from pathlib import Path
+from setuptools import setup, Extension, find_packages
+from setuptools.command.build_ext import build_ext
 
 
-ext_modules = [
-    Pybind11Extension(
-        "ciwheels_example._core", # module name
-        ["src/main.cpp"], # source file
-        extra_compile_args=extra_compile_args,
-        cxx_std=11,
-    ),
-]
+class CMakeExtension(Extension):
+    def __init__(self, name, sourcedir=""):
+        Extension.__init__(self, name, sources=[])
+        self.sourcedir = os.path.abspath(sourcedir)
+
+
+class CMakeBuild(build_ext):
+    def build_extension(self, ext):
+        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        
+        if not extdir.endswith(os.path.sep):
+            extdir += os.path.sep
+
+        debug = int(os.environ.get("DEBUG", 0)) if self.debug is None else self.debug
+        cfg = "Debug" if debug else "Release"
+
+        cmake_args = [
+            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}",
+            f"-DPYTHON_EXECUTABLE={sys.executable}",
+            f"-DCMAKE_BUILD_TYPE={cfg}",
+        ]
+
+        # MKL specific
+        if "MKLROOT" in os.environ:
+            cmake_args.append(f"-DMKL_ROOT={os.environ['MKLROOT']}")
+
+        build_args = ["--config", cfg]
+
+        if sys.platform.startswith("win"):
+            cmake_args += [
+                f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"
+            ]
+            if sys.maxsize > 2**32:
+                cmake_args += ["-A", "x64"]
+            build_args += ["--", "/m"]
+        else:
+            build_args += ["--", "-j4"]
+
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+
+        subprocess.check_call(
+            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
+        )
+        subprocess.check_call(
+            ["cmake", "--build", "."] + build_args, cwd=self.build_temp
+        )
+
 
 setup(
-    name="ciwheels-example",
-    version="0.0.1",
-    author="Gemini",
-    author_email="no-reply@google.com",
-    description="A test project for cibuildwheel with C++ extensions",
-    long_description="",
-    ext_modules=ext_modules,
-    cmdclass={"build_ext": build_ext},
+    name="mkl_example",
+    ext_modules=[CMakeExtension("mkl_example._mkl_example")],
+    cmdclass={"build_ext": CMakeBuild},
+    packages=find_packages(where="python"),
+    package_dir={"": "python"},
     zip_safe=False,
-    python_requires=">=3.7",
-    packages=["ciwheels_example"],
-    package_dir={"": "src"},
+    python_requires=">=3.8",
 )

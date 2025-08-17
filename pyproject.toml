@@ -1,17 +1,81 @@
 [build-system]
-requires = ["setuptools", "wheel", "pybind11>=2.6"]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "cmake>=3.15",
+    "pybind11>=2.10.0",
+    "ninja; platform_system!='Windows'",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ciwheels-example"
-version = "0.0.1"
-description = "A test project for cibuildwheel with C++ extensions (NEON/AVX)"
+name = "mkl_example"
+version = "1.0.0"
+description = "Example package using MKL with dynamic linking"
 readme = "README.md"
-requires-python = ">=3.7"
-license = { text = "MIT" }
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
-    "Topic :: Software Development :: Build Tools",
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+]
+
+dependencies = [
+    "numpy>=1.19.0",
+    "mkl>=2023.0.0",  # Intel MKL Python wrapper
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+]
+
+[tool.cibuildwheel]
+build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+skip = "*-win32 *-musllinux* *i686"
+
+# Linux specific settings
+[tool.cibuildwheel.linux]
+before-all = [
+    "yum install -y epel-release",
+    "yum install -y cmake3 ninja-build",
+    # Install Intel MKL
+    "yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo",
+    "rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB",
+    "yum install -y intel-mkl-2024.0",
+]
+environment = {MKLROOT="/opt/intel/oneapi/mkl/latest", LD_LIBRARY_PATH="/opt/intel/oneapi/mkl/latest/lib/intel64:$LD_LIBRARY_PATH"}
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --exclude libmkl_core.so --exclude libmkl_sequential.so --exclude libmkl_intel_lp64.so"
+
+# macOS specific settings
+[tool.cibuildwheel.macos]
+before-all = [
+    "brew install cmake ninja",
+    "brew install intel-mkl",
+]
+environment = {MKLROOT="/usr/local/opt/intel-mkl", DYLD_LIBRARY_PATH="/usr/local/opt/intel-mkl/lib:$DYLD_LIBRARY_PATH"}
+repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel} --exclude libmkl_core.dylib --exclude libmkl_sequential.dylib --exclude libmkl_intel_lp64.dylib"
+
+# Windows specific settings
+[tool.cibuildwheel.windows]
+before-build = [
+    "pip install delvewheel",
+]
+environment = {MKLROOT="C:\\Program Files (x86)\\Intel\\oneAPI\\mkl\\latest"}
+repair-wheel-command = "delvewheel repair --no-dll libmkl_core.dll --no-dll libmkl_sequential.dll --no-dll libmkl_intel_lp64.dll -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.test]
+test-requires = "pytest"
+test-command = "pytest {project}/tests"
