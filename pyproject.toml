@@ -37,24 +37,41 @@ skip = "*-musllinux* *i686"
 
 before-all = [
     # 修复 CentOS 7 EOL 问题
-    "sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo",
-    "sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo",
-
+    "sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo || true",
+    "sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo || true",
+    
+    # 安装基础工具
     "yum install -y epel-release",
-    "yum install -y cmake3 ninja-build",
-
-    # 添加 Intel MKL 仓库
-    "yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo",
+    "yum install -y cmake3 ninja-build wget",
+    
+    # 方法1：添加 Intel oneAPI 仓库（推荐）
+    "cat > /etc/yum.repos.d/oneAPI.repo << 'EOF'
+[oneAPI]
+name=Intel oneAPI repository
+baseurl=https://yum.repos.intel.com/oneapi
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+EOF",
+    
+    # 导入 GPG key
     "rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB",
     
+    # 清理和更新缓存
+    "yum clean all",
+    "yum makecache",
     
-
-    # 【重要】使用正确的包名来安装最新版的 Intel MKL 开发包
-    "yum install -y intel-oneapi-mkl-devel",
+    # 安装 Intel MKL
+    "yum install -y intel-oneapi-mkl-devel-2024.0 || yum install -y intel-oneapi-mkl-devel",
 ]
 
 # 设置环境变量
-environment = {MKLROOT="/opt/intel/oneapi/mkl/latest", LD_LIBRARY_PATH="/opt/intel/oneapi/mkl/latest/lib/intel64:$LD_LIBRARY_PATH"}
+environment = {
+    MKLROOT="/opt/intel/oneapi/mkl/latest",
+    LD_LIBRARY_PATH="/opt/intel/oneapi/mkl/latest/lib/intel64:$LD_LIBRARY_PATH",
+    PKG_CONFIG_PATH="/opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH"
+}
 
 # 修复wheel，排除MKL库
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --exclude libmkl_core.so.2 --exclude libmkl_sequential.so.2 --exclude libmkl_intel_lp64.so.2"
