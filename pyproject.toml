@@ -43,8 +43,14 @@ test = [
 ]
 
 [tool.cibuildwheel]
+# 构建选择
 build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
 skip = "*-win32 *-musllinux* *i686"
+
+# 测试配置 - 使用正确的选项名称
+test-requires = "pytest numpy"
+test-command = "python -c 'import mkl_example; print(mkl_example.get_mkl_version())' && pytest {project}/tests"
+test-skip = ""  # 如果需要跳过某些平台的测试，可以在这里设置
 
 # Linux specific settings
 [tool.cibuildwheel.linux]
@@ -57,7 +63,7 @@ before-all = [
     "yum install -y intel-mkl-2024.0",
 ]
 environment = {MKLROOT="/opt/intel/oneapi/mkl/latest", LD_LIBRARY_PATH="/opt/intel/oneapi/mkl/latest/lib/intel64:$LD_LIBRARY_PATH"}
-repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --exclude libmkl_core.so --exclude libmkl_sequential.so --exclude libmkl_intel_lp64.so"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} --exclude libmkl_core.so.2 --exclude libmkl_sequential.so.2 --exclude libmkl_intel_lp64.so.2"
 
 # macOS specific settings
 [tool.cibuildwheel.macos]
@@ -75,7 +81,3 @@ before-build = [
 ]
 environment = {MKLROOT="C:\\Program Files (x86)\\Intel\\oneAPI\\mkl\\latest"}
 repair-wheel-command = "delvewheel repair --no-dll libmkl_core.dll --no-dll libmkl_sequential.dll --no-dll libmkl_intel_lp64.dll -w {dest_dir} {wheel}"
-
-[tool.cibuildwheel.test]
-test-requires = "pytest"
-test-command = "pytest {project}/tests"
