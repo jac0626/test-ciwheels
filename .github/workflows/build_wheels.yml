@@ -27,6 +27,8 @@ jobs:
         env:
           # 为pip设置超时，增加CI的稳定性
           PIP_DEFAULT_TIMEOUT: "100"
+          # 在构建前升级pip、wheel和setuptools，解决旧环境下的依赖查找问题
+          CIBW_BEFORE_BUILD: "python -m pip install --upgrade pip wheel setuptools"
         with:
           # 将编译好的wheel输出到wheelhouse目录
           output-dir: wheelhouse
