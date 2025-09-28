@@ -1,6 +1,6 @@
 # python/pyproject.toml
 [build-system]
-requires = ["scikit-build-core<0.8", "ninja"]
+requires = ["scikit-build-core", "ninja"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -8,9 +8,8 @@ name = "pyvsag-cmake-example"
 version = "0.1.0" # 在这个例子中我们使用静态版本
 description = "一个使用CMake和pybind11构建的Python C++扩展"
 readme = "../README.md" # 相对于此文件的路径
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 classifiers = [
-    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
