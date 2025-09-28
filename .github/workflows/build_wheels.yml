@@ -1,0 +1,40 @@
+# .github/workflows/build_wheels.yml
+name: Build Python Wheels (CMake)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    name: "构建 wheel on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: "检出代码 (包含子模块)"
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive' # 关键：检出pybind11子模块
+
+      - name: "构建所有 wheel"
+        uses: pypa/cibuildwheel@v2.17.0
+        env:
+          # 为pip设置超时，增加CI的稳定性
+          PIP_DEFAULT_TIMEOUT: "100"
+        with:
+          # 将编译好的wheel输出到wheelhouse目录
+          output-dir: wheelhouse
+          # 指定包含pyproject.toml的目录
+          package-dir: python
+
+      - name: "上传构建产物 (wheel)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "python-wheels-${{ matrix.os }}"
+          path: ./wheelhouse/*.whl
