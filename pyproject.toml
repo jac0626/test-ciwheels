@@ -1,0 +1,12 @@
+# pyproject.toml
+# PEP 518: 指定构建系统和依赖
+[build-system]
+# 构建 wheel 包所必需的依赖
+requires = [
+    "setuptools>=42",
+    "wheel",
+    "scikit-build-core>=0.4.0", # 核心：使用 scikit-build-core 作为 CMake 构建后端
+    "pybind11>=2.10"            # 构建时需要 pybind11 的头文件和 CMake 支持
+]
+# 指定构建后端的入口
+build-backend = "scikit_build_core.build"

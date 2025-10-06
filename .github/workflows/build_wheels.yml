@@ -1,42 +1,46 @@
 # .github/workflows/build_wheels.yml
-name: Build Python Wheels (CMake)
+name: Build Wheels
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build_wheels:
-    name: "构建 wheel on ${{ matrix.os }}"
+    name: Build wheels on ${{ matrix.os }} for CPython ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - name: "检出代码 (包含子模块)"
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: 'recursive' # 关键：检出pybind11子模块
 
-      - name: "构建所有 wheel"
-        uses: pypa/cibuildwheel@v2.17.0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 关键：固定 cibuildwheel 版本到 v2.11.4 以支持 Python 3.6
+          python -m pip install "cibuildwheel==2.11.4"
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          # 为pip设置超时，增加CI的稳定性
-          PIP_DEFAULT_TIMEOUT: "100"
-          # 在构建前升级pip、wheel和setuptools，解决旧环境下的依赖查找问题
-          CIBW_BEFORE_BUILD: "python -m pip install --upgrade pip wheel setuptools"
-        with:
-          # 将编译好的wheel输出到wheelhouse目录
-          output-dir: wheelhouse
-          # 指定包含pyproject.toml的目录
-          package-dir: python
+          # cibuildwheel 的配置选项
+          # 例如，可以跳过某些不兼容的 Linux ABI
+          CIBW_SKIP: "*-musllinux*"
 
-      - name: "上传构建产物 (wheel)"
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "python-wheels-${{ matrix.os }}"
+          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
