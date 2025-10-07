@@ -1,0 +1,24 @@
+[build-system]
+# 指定与 Python 3.6/3.7 兼容的构建依赖
+requires = [
+    "setuptools<60",
+    "wheel",
+    "pybind11>=2.10,<3",
+    "cmake>=3.18",
+    "cmake-build-extension"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my_minimal_project"
+version = "0.1.0"
+requires-python = ">=3.6, <3.8"
+
+[tool.cibuildwheel]
+# 只构建 cp36 和 cp37
+build = "cp36-* cp37-*"
+# 只构建 manylinux 平台 (x86_64 和 aarch64 会被包含)
+skip = ["*-win*", "*-macosx*", "*-musllinux*"]
+# aarch64 架构需要 QEMU 模拟，在此处启用
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64"]
