@@ -158,26 +158,26 @@ jobs:
       
       - name: Update setup.py to read version
         run: |
-          cat > python/setup_with_version.py << 'EOF'
-from setuptools import setup, Extension
-import os
+          cat <<'EOF' | sed 's/^            //' > python/setup_with_version.py
+            from setuptools import setup, Extension
+            import os
 
-# Read version from _version.py
-version = "0.0.0"
-version_file = os.path.join(os.path.dirname(__file__), "pyvsag", "_version.py")
-if os.path.exists(version_file):
-    with open(version_file) as f:
-        exec(f.read())
-        version = __version__
+            # Read version from _version.py
+            version = "0.0.0"
+            version_file = os.path.join(os.path.dirname(__file__), "pyvsag", "_version.py")
+            if os.path.exists(version_file):
+                with open(version_file) as f:
+                    exec(f.read())
+                    version = __version__
 
-print(f"Building with version: {version}")
+            print(f"Building with version: {version}")
 
-setup(
-    version=version,
-    ext_modules=[Extension('pyvsag._hello', sources=['../src/hello.c'])],
-    zip_safe=False,
-)
-EOF
+            setup(
+                version=version,
+                ext_modules=[Extension('pyvsag._hello', sources=['../src/hello.c'])],
+                zip_safe=False,
+            )
+          EOF
           mv python/setup.py python/setup_original.py
           mv python/setup_with_version.py python/setup.py
       
