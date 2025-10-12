@@ -1,0 +1,216 @@
+name: Test Python 3.6 Wheel Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-version-generation:
+    name: Test version generation methods
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Test setuptools_scm version
+        run: |
+          pip install setuptools_scm
+          echo "=== Testing setuptools_scm version detection ==="
+          python -c "
+          import setuptools_scm
+          version = setuptools_scm.get_version()
+          print(f'Detected version: {version}')
+          "
+  
+  build-py36-method1:
+    name: Method 1 - Static version in pyproject.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate version and patch configs
+        run: |
+          pip install setuptools_scm
+          VERSION=$(python -c "import setuptools_scm; print(setuptools_scm.get_version())")
+          echo "Generated version: $VERSION"
+          
+          # Create version file
+          mkdir -p python/pyvsag
+          echo "__version__ = \"$VERSION\"" > python/pyvsag/_version.py
+          cat python/pyvsag/_version.py
+          
+          # Patch pyproject.toml
+          cd python
+          sed -i 's/setuptools>=61.0/setuptools<60/g' pyproject.toml
+          sed -i 's/setuptools_scm[toml]>=6.2//g' pyproject.toml
+          sed -i '/dynamic = ["version"]/d' pyproject.toml
+          sed -i "/^name = \"pyvsag\"/a version = \"$VERSION\"" pyproject.toml
+          sed -i '/[tool.setuptools_scm]/,/^$/d' pyproject.toml
+          
+          echo "=== Updated pyproject.toml ==="
+          cat pyproject.toml
+      
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v2.11.4
+        with:
+          package-dir: python
+        env:
+          CIBW_BUILD: "cp36-*"
+          CIBW_ARCHS: x86_64
+          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+      
+      - name: Check wheel name
+        run: |
+          echo "=== Generated wheels ==="
+          ls -la wheelhouse/
+          for wheel in wheelhouse/*.whl; do
+            echo "Checking wheel: $(basename $wheel)"
+            if [[ $(basename $wheel) == *"0.0.0"* ]]; then
+              echo "ERROR: Wheel has 0.0.0 version!"
+              exit 1
+            fi
+          done
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-method1
+          path: ./wheelhouse/*.whl
+
+  build-py36-method2:
+    name: Method 2 - Version in setup.cfg
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate version and patch configs
+        run: |
+          pip install setuptools_scm
+          VERSION=$(python -c "import setuptools_scm; print(setuptools_scm.get_version())")
+          echo "Generated version: $VERSION"
+          
+          # Create version file
+          mkdir -p python/pyvsag
+          echo "__version__ = \"$VERSION\"" > python/pyvsag/_version.py
+          
+          # Add version to setup.cfg
+          cd python
+          echo "" >> setup.cfg
+          echo "version = $VERSION" >> setup.cfg
+          
+          # Patch pyproject.toml
+          sed -i 's/setuptools>=61.0/setuptools<60/g' pyproject.toml
+          sed -i 's/setuptools_scm[toml]>=6.2//g' pyproject.toml
+          sed -i '/[tool.setuptools_scm]/,/^$/d' pyproject.toml
+          
+          echo "=== Updated setup.cfg ==="
+          tail -5 setup.cfg
+      
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v2.11.4
+        with:
+          package-dir: python
+        env:
+          CIBW_BUILD: "cp36-*"
+          CIBW_ARCHS: x86_64
+          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+      
+      - name: Check wheel name
+        run: |
+          echo "=== Generated wheels ==="
+          ls -la wheelhouse/
+          for wheel in wheelhouse/*.whl; do
+            echo "Checking wheel: $(basename $wheel)"
+            if [[ $(basename $wheel) == *"0.0.0"* ]]; then
+              echo "ERROR: Wheel has 0.0.0 version!"
+              exit 1
+            fi
+          done
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-method2
+          path: ./wheelhouse/*.whl
+
+  build-py36-method3:
+    name: Method 3 - Version from setup.py
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate version file
+        run: |
+          pip install setuptools_scm
+          VERSION=$(python -c "import setuptools_scm; print(setuptools_scm.get_version())")
+          echo "Generated version: $VERSION"
+          
+          # Create version file
+          mkdir -p python/pyvsag
+          echo "__version__ = \"$VERSION\"" > python/pyvsag/_version.py
+          cat python/pyvsag/_version.py
+      
+      - name: Update setup.py to read version
+        run: |
+          cat > python/setup_with_version.py << 'EOF'
+from setuptools import setup, Extension
+import os
+
+# Read version from _version.py
+version = "0.0.0"
+version_file = os.path.join(os.path.dirname(__file__), "pyvsag", "_version.py")
+if os.path.exists(version_file):
+    with open(version_file) as f:
+        exec(f.read())
+        version = __version__
+
+print(f"Building with version: {version}")
+
+setup(
+    version=version,
+    ext_modules=[Extension('pyvsag._hello', sources=['../src/hello.c'])],
+    zip_safe=False,
+)
+EOF
+          mv python/setup.py python/setup_original.py
+          mv python/setup_with_version.py python/setup.py
+      
+      - name: Patch pyproject.toml
+        run: |
+          cd python
+          sed -i 's/setuptools>=61.0/setuptools<60/g' pyproject.toml
+          sed -i 's/setuptools_scm[toml]>=6.2//g' pyproject.toml
+          sed -i '/dynamic = ["version"]/d' pyproject.toml
+          sed -i '/[tool.setuptools_scm]/,/^$/d' pyproject.toml
+      
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v2.11.4
+        with:
+          package-dir: python
+        env:
+          CIBW_BUILD: "cp36-*"
+          CIBW_ARCHS: x86_64
+          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+      
+      - name: Check wheel name
+        run: |
+          echo "=== Generated wheels ==="
+          ls -la wheelhouse/
+          for wheel in wheelhouse/*.whl; do
+            echo "Checking wheel: $(basename $wheel)"
+            if [[ $(basename $wheel) == *"0.0.0"* ]]; then
+              echo "ERROR: Wheel has 0.0.0 version!"
+              exit 1
+            fi
+          done
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-method3
+          path: ./wheelhouse/*.whl

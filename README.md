@@ -1,51 +1,28 @@
-# 构建与测试
+# Minimal Test Project for Python 3.6 Wheel Building
 
-## 先决条件
+This is a minimal project to test Python 3.6 wheel building with proper versioning.
 
-- Python (3.6+)
-- C++ 编译器 (GCC, Clang, or MSVC)
-- CMake (3.15+)
-- Git
+## Quick Start
 
-## 本地开发
+1. Create a new GitHub repository
+2. Copy all these files into the repository
+3. Push to GitHub
+4. Check the Actions tab to see the workflow results
 
-1.  **克隆仓库**
-    ```bash
-    git clone <your-repo-url>
-    cd test-ciwheels
-    ```
+## What This Tests
 
-2.  **创建并激活虚拟环境**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # on Linux/macOS
-    # venv\Scripts\activate    # on Windows
-    ```
+The workflow tests three different methods for handling version numbers with Python 3.6:
 
-3.  **可编辑模式安装**
-    此命令会编译 C++ 代码并在当前项目内安装包，便于开发和调试。
-    ```bash
-    pip install -e .
-    ```
+1. **Method 1**: Static version in pyproject.toml
+2. **Method 2**: Version in setup.cfg  
+3. **Method 3**: Version read from setup.py
 
-4.  **运行测试**
-    创建一个 `test.py` 文件：
-    ```python
-    from pyvsag import Calculator
+Each method will build a wheel and verify that the version is NOT 0.0.0.
 
-    calc = Calculator()
-    result = calc.add(10, 22)
-    print(f"10 + 22 = {result}")
-    assert result == 32
-    print("测试成功!")
-    ```
-    然后运行：
-    ```bash
-    python test.py
-    ```
+## Expected Output
 
-## 构建 Wheel 包用于分发
+All three methods should produce wheels with proper version numbers like:
+- `pyvsag-0.1.dev1+g1234567-cp36-cp36m-linux_x86_64.whl`
 
-```bash
-pip wheel . --wheel-dir dist
-```
+NOT:
+- `pyvsag-0.0.0-cp36-cp36m-linux_x86_64.whl`
