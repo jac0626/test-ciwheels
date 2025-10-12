@@ -61,7 +61,7 @@ jobs:
         env:
           CIBW_BUILD: "cp36-*"
           CIBW_ARCHS: x86_64
-          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+          CIBW_BEFORE_BUILD: "pip install 'setuptools<60'"
       
       - name: Check wheel name
         run: |
@@ -118,7 +118,7 @@ jobs:
         env:
           CIBW_BUILD: "cp36-*"
           CIBW_ARCHS: x86_64
-          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+          CIBW_BEFORE_BUILD: "pip install 'setuptools<60'"
       
       - name: Check wheel name
         run: |
@@ -196,7 +196,7 @@ jobs:
         env:
           CIBW_BUILD: "cp36-*"
           CIBW_ARCHS: x86_64
-          CIBW_BEFORE_BUILD: "pip install setuptools<60"
+          CIBW_BEFORE_BUILD: "pip install 'setuptools<60'"
       
       - name: Check wheel name
         run: |
